@@ -1,19 +1,11 @@
-# import Pkg; Pkg.add("Distributions"); Pkg.add("GLMakie"); Pkg.add("Combinatorics")
+# Uncomment to install dependencies on first run
+# import Pkg; Pkg.add("Distributions"); Pkg.add("GLMakie");
 
 using Random, Distributions, Statistics
 using GLMakie
 using Printf
 
 const global kB::Float64 = 1.380649e-23
-
-mutable struct Particles
-    x::Vec{Float64}
-    y::Vec{Float64}
-    dxdt::Vec{Float64}
-    dydt::Vec{Float64}
-    ix::Vec{Int64}
-    iy::Vec{Int64}
-end
 
 struct Geometry
     x_min::Float64
@@ -111,7 +103,7 @@ function push_particles(geom::Geometry, x::Vector{Float64}, y::Vector{Float64}, 
             c = sqrt(gas.m / (2 * pi * kB * gas.T))
             flux_left = (geom.y_max - geom.y_min) * gas.n * 2634 / F_n # Approximate flux (l * n * ux / F_n) into domain across left boundary using free stream bulk velocity
             flux_top = (geom.x_max - geom.x_min) * gas.n * c / (2 * a) / F_n # Approximate flux (l * n * uy / F_n) into domain across top boundary using y-direction Maxwellian
-            # println("flux condition: ", flux_top / (flux_left + flux_top))
+
             if r < flux_top / (flux_left + flux_top) # Probability to choose top boundary is length of top boundary divided by total length of left and top boundary combined
                 x[i] = rand(Uniform(geom.x_min, geom.x_max))
                 y[i] = geom.y_max
@@ -128,10 +120,10 @@ function push_particles(geom::Geometry, x::Vector{Float64}, y::Vector{Float64}, 
 end
 
 function vhs(dxdt1::Float64, dydt1::Float64, dxdt2::Float64, dydt2::Float64)
-    scattering_angle = 2 * pi * rand()
+    scattering_angle = 2 * pi * rand() # Select random scattering angle
     dxdt_cr = dxdt1 - dxdt2
     dydt_cr = dydt1 - dydt2
-    cr_mag = sqrt(dxdt_cr^2 + dydt_cr^2)
+    cr_mag = sqrt(dxdt_cr^2 + dydt_cr^2) # Determine relative speed
     dxdt_cr = cr_mag * cos(scattering_angle)
     dydt_cr = cr_mag * sin(scattering_angle)
 
@@ -190,7 +182,6 @@ function collide_particles(geom::Geometry, cell_fractions, x::Vector{Float64}, y
             N_c_carry[cell_index] = N_c_add_f # Carry over new total fractional part
             pair_p = sigma_rel_speeds ./ max_sigma_rel_speed # Compute collision probability for each pair
 
-            # println(min(floor(N_c), length(pairs)))
             for i in 1:N_c_i
                 pair_idx = rand(1:length(pairs))
                 r = rand()
@@ -258,8 +249,8 @@ function eval_fields(cell_fractions, x::Vector{Float64}, y::Vector{Float64}, dxd
     y_s = y[i_s]
     dxdt_s = dxdt[i_s]
     dydt_s = dydt[i_s]
-    # Threads.@threads for cell_index in 1:(geom.nx*geom.ny) # Iterate over all possible cells
-    for cell_index in 1:(geom.nx*geom.ny) # Iterate over all possible cells
+
+    Threads.@threads for cell_index in 1:(geom.nx*geom.ny) # Iterate over all possible cells
         cell_range = searchsorted(cell_indices_s, cell_index) # Find indices in sorted cell indices which belong to this cell
 
         # Select particles in cell
@@ -310,15 +301,15 @@ end
 function plot_particles(x::Vector{Float64}, y::Vector{Float64})
     obs_x = Observable(x)
     obs_y = Observable(y)
-    # data = @lift(Point2f.([$obs_x; $obs_x], [$obs_y; -$obs_y])) # Full domain (incl. symmetry)
-    data = @lift(Point2f.($obs_x, $obs_y)) # Half domain
+    data = @lift(Point2f.([$obs_x; $obs_x], [$obs_y; -$obs_y])) # Full domain (incl. symmetry)
+    # data = @lift(Point2f.($obs_x, $obs_y)) # Half domain
     fig = Figure(backgroundcolor=:white)
     display(GLMakie.Screen(), fig)
     ax = Axis(fig[1, 1], aspect=DataAspect())
     ax.xlabel = "x"
     ax.ylabel = "y"
     xlims!(ax, geom.x_min, geom.x_max)
-    ylims!(ax, geom.y_min, geom.y_max)
+    ylims!(ax, -geom.y_max, geom.y_max)
     scatter!(data, color=:red, markersize=2)
     mesh!(Circle(Point2f(geom.c_center_x, geom.c_center_y), geom.c_radius), color="black")
 
@@ -351,7 +342,6 @@ function dsmc(geom::Geometry, gas::Gas, nc::Int64, t_final::Float64, t_sample::F
     hx = (geom.x_max - geom.x_min) / geom.nx
     hy = (geom.y_max - geom.y_min) / geom.ny
     cell_fractions = compute_cell_fractions(geom)
-    # plot_field(geom, cell_fractions)
 
     # Compute superparticle count and superparticle weight
     V_d::Float64 = (geom.x_max - geom.x_min) * (geom.y_max - geom.y_min) - 0.5 * pi * geom.c_radius^2 # Domain volume
