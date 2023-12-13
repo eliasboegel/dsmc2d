@@ -301,15 +301,14 @@ end
 function plot_particles(x::Vector{Float64}, y::Vector{Float64})
     obs_x = Observable(x)
     obs_y = Observable(y)
-    data = @lift(Point2f.([$obs_x; $obs_x], [$obs_y; -$obs_y])) # Full domain (incl. symmetry)
-    # data = @lift(Point2f.($obs_x, $obs_y)) # Half domain
+    data = @lift(Point2f.($obs_x, $obs_y)) # Half domain
     fig = Figure(backgroundcolor=:white)
     display(GLMakie.Screen(), fig)
     ax = Axis(fig[1, 1], aspect=DataAspect())
     ax.xlabel = "x"
     ax.ylabel = "y"
     xlims!(ax, geom.x_min, geom.x_max)
-    ylims!(ax, -geom.y_max, geom.y_max)
+    ylims!(ax, geom.y_min, geom.y_max)
     scatter!(data, color=:red, markersize=2)
     mesh!(Circle(Point2f(geom.c_center_x, geom.c_center_y), geom.c_radius), color="black")
 
